@@ -4,6 +4,7 @@ import (
   "fmt"
   "os"
   "syscall"
+  "time"
   "unsafe"
 )
 
@@ -26,7 +27,31 @@ func clearScreen() {
   fmt.Print("\033[H")
 }
 
-func captureInput(callback func(key byte) (done bool)) {
+func flashMessage(msg string) {
+  clearScreen()
+  fmt.Println(msg)
+  time.Sleep(500 * time.Millisecond)
+  clearScreen()
+}
+
+func askToChoose(options map[byte]string) (selectedKey byte) {
+  clearScreen()
+  fmt.Println("==============")
+  fmt.Println("Please Choose:")
+  for key, title := range options {
+    fmt.Printf("[%c] %s\n", key, title)
+  }
+  fmt.Println("==============")
+  for {
+    selectedKey = captureInput()
+    if _, ok := options[selectedKey]; ok {
+      break
+    }
+  }
+  return selectedKey
+}
+
+func captureInput() (key byte) {
   var oldState syscall.Termios
 	fd := int(os.Stdin.Fd())
 
@@ -51,12 +76,13 @@ func captureInput(callback func(key byte) (done bool)) {
 	}()
 
 	buf := make([]byte, 1)
-  for {
-    os.Stdin.Read(buf)
-    done := callback(buf[0])
-    if done {
-      break
-    }
+  os.Stdin.Read(buf)
+
+  key = buf[0]
+  if 'A' <= key && key <= 'Z' {
+    key += 'a' - 'A'
   }
+
+  return key
 }
 

@@ -2,7 +2,6 @@ package main
 
 import (
   "fmt"
-  "strings"
   "time"
 )
 
@@ -20,55 +19,46 @@ type context struct {
   playerPosition int
 }
 
-func (ctx *context) updateRadar(newLine []int) {
+func (ctx *context) moveForward() (end bool) {
+    mapLine, end := ctx.readMap()
+    if end {
+      return true
+    }
     // Remove the first line of the radar
     // and append a new line.
     ctx.radar = ctx.radar[1:]
-    ctx.radar = append(ctx.radar, newLine)
+    ctx.radar = append(ctx.radar, mapLine)
     // Reposition the player in
     // the new first line of the radar.
-    fisrtLine := ctx.radar[0]
-    if len(fisrtLine) == 0 {
-      fisrtLine = make([]int, ctx.width)
+    firstLine := ctx.radar[0]
+    if len(firstLine) == 0 {
+      firstLine = make([]int, ctx.width)
     }
-    fisrtLine[ctx.playerPosition] = 2
-    ctx.radar[0] = fisrtLine
+    firstLine[ctx.playerPosition] = 2
+    ctx.radar[0] = firstLine
+    return false
 }
 
-func (ctx *context) moveForward() (end bool) {
+func (ctx *context) readMap() (mapLine []int, end bool) {
   // The whole map have been read.
   if ctx.mapIndex <= 0 {
+    // Return blank lines.
     if ctx.blankLineCount < ctx.height {
       ctx.blankLineCount++
-      ctx.updateRadar([]int{})
-      return false
+      return []int{}, false
     }
-    return true
+    return nil, true
   }
   // Add blank lines between map lines.
   if ctx.blankLineCount < ctx.vRatio {
     ctx.blankLineCount++
-    ctx.updateRadar([]int{})
-    return false
+    return []int{}, false
   }
   ctx.blankLineCount = 0
   i := ctx.mapIndex
   ctx.mapIndex--
-  mapLine := ctx.selectedMap[i]
-  ctx.updateRadar(mapLine)
-  return false
-}
-
-func (ctx *context) submitControllerAction(key byte) {
-  if 'A' <= key && key <= 'Z' {
-    key += 'a' - 'A'
-  }
-  switch key {
-  case 'a':
-    ctx.moveLeft()
-  case 'd':
-    ctx.moveRight()
-  }
+  mapLine = ctx.selectedMap[i]
+  return mapLine, false
 }
 
 func (ctx *context) moveLeft() {
@@ -85,26 +75,42 @@ func (ctx *context) moveRight() {
   ctx.playerPosition++
 }
 
-func startGame() {
-  ctx := newGame()
+func (ctx *context) runCommand(cmd string) {
+  switch cmd {
+  case "left":
+    ctx.moveLeft()
+  case "right":
+    ctx.moveRight()
+  }
+}
+
+func startGame(ctx *context) {
   ctx.gameRunning = true
-  go captureInput(func(key byte) bool {
-    ctx.submitControllerAction(key)
-    return !ctx.gameRunning
-  })
   go func() {
     ticker := time.NewTicker(50 * time.Millisecond)
     for ; ctx.gameRunning; <-ticker.C {
       render(ctx)
     }
   }()
-  delayMS := time.Duration(500 / ctx.speed)
-  ticker := time.NewTicker(delayMS * time.Millisecond)
-  for ; ; <-ticker.C {
-    end := ctx.moveForward()
-    if end {
+  go func() {
+    delayMS := time.Duration(500 / ctx.speed)
+    ticker := time.NewTicker(delayMS * time.Millisecond)
+    for ; ctx.gameRunning; <-ticker.C {
+      end := ctx.moveForward()
+      if end {
+        ctx.gameRunning = false
+        break
+      }
+    }
+  }()
+  for ctx.gameRunning {
+    key := captureInput()
+    switch key {
+    case 'q':
       ctx.gameRunning = false
-      break
+    default:
+      cmd := translateKeyToGameCommand(key)
+      ctx.runCommand(cmd)
     }
   }
 }
@@ -129,21 +135,30 @@ func render(ctx *context) {
   fmt.Print(canvas)
 }
 
-func newGame() *context {
+func translateKeyToGameCommand(key byte) (cmd string) {
+  switch key {
+  case 'a':
+    cmd = "left"
+  case 'd':
+    cmd = "right"
+  }
+  return cmd
+}
+
+func newGame() context {
   selectedMap := getMap()
   ctx := context{
     selectedMap: selectedMap,
     mapIndex: len(selectedMap) - 1,
     hRatio: 1,
     vRatio: 3,
-    radar: [][]int{},
     height: 20,
     width: 15,
     speed: 2,
     playerPosition: 7,
   }
   ctx.radar = make([][]int, ctx.height)
-  return &ctx
+  return ctx
 }
 
 func getMap() [][]int {
@@ -168,20 +183,25 @@ func getMap() [][]int {
 }
 
 func main() {
+  ctx := newGame()
   for {
-    startGame()
+    startGame(&ctx)
     printBlankLine(5)
     fmt.Println("GAME OVER!")
-    fmt.Print("Do you want to continue? (y/n) ")
-    var answer string
-    fmt.Scanln(&answer)
-    answer = strings.ToLower(answer)
-    if answer == "n" || answer == "no" {
-      fmt.Println("GOOD GAME!")
-      time.Sleep(1000 * time.Millisecond)
-      clearScreen()
+    fmt.Println()
+    key := askToChoose(map[byte]string{
+      'r': "Resume",
+      'n': "New Game",
+      'q': "Quit",
+    })
+    if key == 'n' {
+      ctx = newGame()
+    } else if key == 'r' {
+      continue
+    } else if key == 'q' {
       break
     }
   }
+  flashMessage("GOOD GAME!")
 }
 
