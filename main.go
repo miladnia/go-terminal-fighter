@@ -15,7 +15,6 @@ type context struct {
   height int
   width int
   speed int
-  gameRunning bool
   playerPosition int
 }
 
@@ -85,33 +84,56 @@ func (ctx *context) runCommand(cmd string) {
 }
 
 func startGame(ctx *context) {
-  ctx.gameRunning = true
+  gameOver := false
+  var ticker1 *time.Ticker
+  var ticker2 *time.Ticker
+  movementDelay := time.Duration(500 / ctx.speed) * time.Millisecond
   go func() {
-    ticker := time.NewTicker(50 * time.Millisecond)
-    for ; ctx.gameRunning; <-ticker.C {
+    ticker1 = time.NewTicker(50 * time.Millisecond)
+    for range ticker1.C {
       render(ctx)
     }
   }()
   go func() {
-    delayMS := time.Duration(500 / ctx.speed)
-    ticker := time.NewTicker(delayMS * time.Millisecond)
-    for ; ctx.gameRunning; <-ticker.C {
-      end := ctx.moveForward()
-      if end {
-        ctx.gameRunning = false
+    ticker2 = time.NewTicker(movementDelay)
+    for range ticker2.C {
+      gameOver = ctx.moveForward()
+      if gameOver {
+        ticker1.Stop()
+        time.Sleep(100 * time.Millisecond)
+        showInfo([]string{
+          "GAME OVER!",
+          "",
+          "[q] Back to the main menu.",
+        })
         break
       }
     }
   }()
-  for ctx.gameRunning {
+
+  for {
     key := captureInput()
-    switch key {
-    case 'q':
-      ctx.gameRunning = false
-    default:
-      cmd := translateKeyToGameCommand(key)
-      ctx.runCommand(cmd)
+
+    if key == 'q' {
+      if gameOver {
+        break
+      }
+      ticker1.Stop()
+      ticker2.Stop()
+      key := askToChoose(map[byte]string{
+        'r': "Resume",
+        'q': "Quit",
+      })
+      if key == 'r' {
+        ticker1.Reset(50 * time.Millisecond)
+        ticker2.Reset(movementDelay)
+      } else {
+        break
+      }
     }
+
+    cmd := translateKeyToGameCommand(key)
+    ctx.runCommand(cmd)
   }
 }
 
@@ -145,7 +167,7 @@ func translateKeyToGameCommand(key byte) (cmd string) {
   return cmd
 }
 
-func newGame() context {
+func newGame() *context {
   selectedMap := getMap()
   ctx := context{
     selectedMap: selectedMap,
@@ -154,11 +176,11 @@ func newGame() context {
     vRatio: 3,
     height: 20,
     width: 15,
-    speed: 2,
+    speed: 10,
     playerPosition: 7,
   }
   ctx.radar = make([][]int, ctx.height)
-  return ctx
+  return &ctx
 }
 
 func getMap() [][]int {
@@ -183,22 +205,15 @@ func getMap() [][]int {
 }
 
 func main() {
-  ctx := newGame()
   for {
-    startGame(&ctx)
-    printBlankLine(5)
-    fmt.Println("GAME OVER!")
-    fmt.Println()
     key := askToChoose(map[byte]string{
-      'r': "Resume",
       'n': "New Game",
-      'q': "Quit",
+      'e': "Exit",
     })
     if key == 'n' {
-      ctx = newGame()
-    } else if key == 'r' {
-      continue
-    } else if key == 'q' {
+      ctx := newGame()
+      startGame(ctx)
+    } else {
       break
     }
   }

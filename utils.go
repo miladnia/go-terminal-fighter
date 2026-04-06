@@ -15,12 +15,6 @@ func printSpace(s string, count int) string {
   return s
 }
 
-func printBlankLine(count int) {
-  for i := 0; i < count; i++ {
-    fmt.Println()
-  }
-}
-
 func clearScreen() {
   // Clear screen
   fmt.Print("\033[2J")
@@ -30,8 +24,16 @@ func clearScreen() {
 func flashMessage(msg string) {
   clearScreen()
   fmt.Println(msg)
-  time.Sleep(500 * time.Millisecond)
+  time.Sleep(1000 * time.Millisecond)
   clearScreen()
+}
+
+func showInfo(lines []string) {
+  clearScreen()
+  for _, ln := range lines {
+    fmt.Println(ln)
+    time.Sleep(500 * time.Millisecond)
+  }
 }
 
 func askToChoose(options map[byte]string) (selectedKey byte) {
