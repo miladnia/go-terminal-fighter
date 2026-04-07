@@ -2,17 +2,17 @@ package main
 
 import (
   "os"
-//  "time"
 )
 
 func main() {
+  klgr := newKeyLogger()
   for {
-    key := ask(map[byte]string{
+    key := ask(klgr, map[byte]string{
       's': "Start",
       'e': "Exit",
     })
     if key == 's' {
-      start()
+      start(klgr)
     } else {
       break
     }
@@ -20,10 +20,10 @@ func main() {
   flashMessage("GOOD GAME!")
 }
 
-func start() {
+func start(klgr *keyLogger) {
   selectedMap := getMap()
   game := newGame(selectedMap)
-  eng := newEngine(os.Stdout, map[byte]string{
+  eng := newEngine(os.Stdout, klgr, map[byte]string{
     'a': "left",
     'd': "right",
     'q': "pause",
@@ -39,7 +39,7 @@ func start() {
       })
       return
     case <-eng.gamePaused:
-      key := ask(map[byte]string{
+      key := ask(klgr, map[byte]string{
         'r': "Resume",
         'q': "Quit",
       })

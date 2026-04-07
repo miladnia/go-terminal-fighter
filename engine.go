@@ -15,6 +15,7 @@ type game interface {
 
 type engine struct {
   w io.Writer
+  klgr *keyLogger
   controllerSetup map[byte]string
   g game
   movementInterval time.Duration
@@ -27,9 +28,10 @@ type engine struct {
   controllerDone chan struct{}
 }
 
-func newEngine(w io.Writer, controllerSetup map[byte]string) *engine {
+func newEngine(w io.Writer, klgr *keyLogger, controllerSetup map[byte]string) *engine {
   return &engine{
     w: w,
+    klgr: klgr,
     controllerSetup: controllerSetup,
     gamePaused: make(chan struct{}),
     gameOver: make(chan struct{}),
@@ -47,31 +49,6 @@ func (eng *engine) startGame(g game, speed int) {
   go eng.listenToController()
 }
 
-func (eng *engine) listenToController() {
-  for {
-    select {
-    case <-eng.controllerDone:
-      fmt.Println("controllerDone", "-----------")
-      return
-    default:
-      key := captureInput()
-      command, ok := eng.controllerSetup[key]
-      if !ok {
-        continue
-      }
-      switch command {
-      case "left":
-        eng.g.moveLeft()
-      case "right":
-        eng.g.moveRight()
-      case "pause":
-        eng.pauseGame()
-        return
-      }
-    }
-  }
-}
-
 func (eng *engine) pauseGame() {
   eng.pauseMovement()
   eng.pauseRendering()
@@ -81,6 +58,7 @@ func (eng *engine) pauseGame() {
 func (eng *engine) resumeGame() {
   go eng.listenToController()
   eng.resumeRendering()
+  time.Sleep(1500 * time.Millisecond)
   eng.resumeMovement()
 }
 
@@ -136,5 +114,28 @@ func (eng *engine) resumeRendering() {
 func (eng *engine) pauseRendering() {
   eng.renderTicker.Stop()
   time.Sleep(100 * time.Millisecond)
+}
+
+func (eng *engine) listenToController() {
+  for {
+    select {
+    case <-eng.controllerDone:
+      return
+    case key := <-eng.klgr.C:
+      command, ok := eng.controllerSetup[key]
+      if !ok {
+        continue
+      }
+      switch command {
+      case "left":
+        eng.g.moveLeft()
+      case "right":
+        eng.g.moveRight()
+      case "pause":
+        eng.pauseGame()
+        return
+      }
+    }
+  }
 }
 

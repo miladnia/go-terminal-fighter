@@ -2,10 +2,7 @@ package main
 
 import (
   "fmt"
-  "os"
-  "syscall"
   "time"
-  "unsafe"
 )
 
 func printSpace(s string, count int) string {
@@ -38,7 +35,7 @@ func showInfo(lines []string) {
   }
 }
 
-func ask(options map[byte]string) (selectedKey byte) {
+func ask(klgr *keyLogger, options map[byte]string) (selectedKey byte) {
   fmt.Println("==============")
   fmt.Println("Please Choose:")
   for key, title := range options {
@@ -46,47 +43,12 @@ func ask(options map[byte]string) (selectedKey byte) {
   }
   fmt.Println("==============")
   for {
-    selectedKey = captureInput()
+    selectedKey = <-klgr.C
     if _, ok := options[selectedKey]; ok {
       break
     }
   }
   clearScreen()
   return selectedKey
-}
-
-func captureInput() (key byte) {
-  var oldState syscall.Termios
-	fd := int(os.Stdin.Fd())
-
-	// Get current terminal state
-	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd),
-		uintptr(syscall.TCGETS), uintptr(unsafe.Pointer(&oldState)), 0, 0, 0); err != 0 {
-		panic(err)
-	}
-
-	newState := oldState
-	newState.Lflag &^= syscall.ICANON | syscall.ECHO
-
-	// Apply new state (raw-ish mode)
-	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd),
-		uintptr(syscall.TCSETS), uintptr(unsafe.Pointer(&newState)), 0, 0, 0); err != 0 {
-		panic(err)
-	}
-
-	defer func() {
-		syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd),
-			uintptr(syscall.TCSETS), uintptr(unsafe.Pointer(&oldState)), 0, 0, 0)
-	}()
-
-	buf := make([]byte, 1)
-  os.Stdin.Read(buf)
-
-  key = buf[0]
-  if 'A' <= key && key <= 'Z' {
-    key += 'a' - 'A'
-  }
-
-  return key
 }
 
