@@ -5,6 +5,11 @@ import (
   "time"
 )
 
+type menuOption struct {
+  key byte
+  title string
+}
+
 func printSpace(s string, count int) string {
   for i := 0; i < count; i++ {
     s = fmt.Sprint(s, " ")
@@ -35,16 +40,18 @@ func showInfo(lines []string) {
   }
 }
 
-func ask(klgr *keyLogger, options map[byte]string) (selectedKey byte) {
+func ask(klgr *keyLogger, options []menuOption) (selectedKey byte) {
+  keys := map[byte]struct{}{}
   fmt.Println("==============")
   fmt.Println("Please Choose:")
-  for key, title := range options {
-    fmt.Printf("[%c] %s\n", key, title)
+  for _, opt := range options {
+    fmt.Printf("[%c] %s\n", opt.key, opt.title)
+    keys[opt.key] = struct{}{}
   }
   fmt.Println("==============")
   for {
     selectedKey = <-klgr.C
-    if _, ok := options[selectedKey]; ok {
+    if _, ok := keys[selectedKey]; ok {
       break
     }
   }

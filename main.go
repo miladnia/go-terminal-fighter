@@ -1,11 +1,12 @@
 package main
 
 func main() {
+  clearScreen()
   klgr := newKeyLogger()
   for {
-    key := ask(klgr, map[byte]string{
-      's': "Start",
-      'e': "Exit",
+    key := ask(klgr, []menuOption{
+      {key: 's', title: "Start"},
+      {key: 'e', title: "Exit"},
     })
     if key == 's' {
       start(klgr)
@@ -36,9 +37,9 @@ func start(klgr *keyLogger) {
       })
       return
     case <-eng.gamePaused:
-      key := ask(klgr, map[byte]string{
-        'r': "Resume",
-        'q': "Quit",
+      key := ask(klgr, []menuOption{
+        {key: 'r', title: "Resume"},
+        {key: 'q', title: "Quit"},
       })
       if key == 'r' {
         eng.resumeGame()
