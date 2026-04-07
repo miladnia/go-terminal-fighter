@@ -1,8 +1,6 @@
 package main
 
 import (
-  "io"
-  "fmt"
   "time"
 )
 
@@ -14,7 +12,7 @@ type game interface {
 }
 
 type engine struct {
-  w io.Writer
+  w writer
   klgr *keyLogger
   controllerSetup map[byte]string
   g game
@@ -28,7 +26,7 @@ type engine struct {
   controllerDone chan struct{}
 }
 
-func newEngine(w io.Writer, klgr *keyLogger, controllerSetup map[byte]string) *engine {
+func newEngine(w writer, klgr *keyLogger, controllerSetup map[byte]string) *engine {
   return &engine{
     w: w,
     klgr: klgr,
@@ -56,8 +54,8 @@ func (eng *engine) pauseGame() {
 }
 
 func (eng *engine) resumeGame() {
-  go eng.listenToController()
   eng.resumeRendering()
+  go eng.listenToController()
   time.Sleep(1500 * time.Millisecond)
   eng.resumeMovement()
 }
@@ -96,14 +94,8 @@ func (eng *engine) startRendering() {
       return
     case <-eng.renderTicker.C:
       frame := eng.g.render()
-      clearScreen()
-      fmt.Fprintln(eng.w, frame)
+      eng.w.write(frame)
     }
-  }
-  for ; ; <-eng.renderTicker.C {
-    frame := eng.g.render()
-    clearScreen()
-	  fmt.Fprintln(eng.w, frame)
   }
 }
 

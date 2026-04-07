@@ -1,9 +1,5 @@
 package main
 
-import (
-  "os"
-)
-
 func main() {
   klgr := newKeyLogger()
   for {
@@ -23,7 +19,8 @@ func main() {
 func start(klgr *keyLogger) {
   selectedMap := getMap()
   game := newGame(selectedMap)
-  eng := newEngine(os.Stdout, klgr, map[byte]string{
+  writer := terminalWriter{}
+  eng := newEngine(&writer, klgr, map[byte]string{
     'a': "left",
     'd': "right",
     'q': "pause",
