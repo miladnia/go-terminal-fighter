@@ -18,11 +18,13 @@ func printSpace(s string, count int) string {
 func clearScreen() {
   // Clear screen
   fmt.Print("\033[2J")
+  // Go to (0, 0)
   fmt.Print("\033[H")
 }
 
 func flashMessage(msg string) {
   clearScreen()
+  time.Sleep(500 * time.Millisecond)
   fmt.Println(msg)
   time.Sleep(1000 * time.Millisecond)
   clearScreen()
@@ -36,8 +38,7 @@ func showInfo(lines []string) {
   }
 }
 
-func askToChoose(options map[byte]string) (selectedKey byte) {
-  clearScreen()
+func ask(options map[byte]string) (selectedKey byte) {
   fmt.Println("==============")
   fmt.Println("Please Choose:")
   for key, title := range options {
@@ -50,6 +51,7 @@ func askToChoose(options map[byte]string) (selectedKey byte) {
       break
     }
   }
+  clearScreen()
   return selectedKey
 }
 
