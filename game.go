@@ -52,23 +52,27 @@ func (ctx *context) render() string {
 }
 
 func (ctx *context) moveForward() (end bool) {
-    mapLine, done := ctx.readMap()
-    if done {
-      return true
-    }
-    // Remove the first line of the radar
-    // and append a new line.
-    ctx.radar = ctx.radar[1:]
-    ctx.radar = append(ctx.radar, mapLine)
-    // Reposition the player in
-    // the new first line of the radar.
-    firstLine := ctx.radar[0]
-    if len(firstLine) == 0 {
-      firstLine = make([]int, ctx.width)
-    }
-    firstLine[ctx.playerPosition] = 2
-    ctx.radar[0] = firstLine
-    return false
+  mapLine, done := ctx.readMap()
+  if done {
+    return true
+  }
+  // Remove the first line of the radar
+  // and append a new line.
+  ctx.radar = ctx.radar[1:]
+  ctx.radar = append(ctx.radar, mapLine)
+  // Reposition the player in
+  // the new first line of the radar.
+  firstLine := ctx.radar[0]
+  if len(firstLine) == 0 {
+    firstLine = make([]int, ctx.width)
+  }
+  // Hit?
+  if firstLine[ctx.playerPosition] > 0 {
+    end = true
+  }
+  firstLine[ctx.playerPosition] = 2
+  ctx.radar[0] = firstLine
+  return end
 }
 
 func (ctx *context) readMap() (mapLine []int, done bool) {

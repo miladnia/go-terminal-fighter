@@ -26,7 +26,7 @@ func start(klgr *keyLogger) {
     'd': "right",
     'q': "pause",
   })
-  eng.startGame(game, 10)
+  eng.startGame(game, 2)
 
   for {
     select {

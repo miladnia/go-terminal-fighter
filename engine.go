@@ -1,8 +1,6 @@
 package main
 
-import (
-  "time"
-)
+import "time"
 
 type game interface {
   render() string
@@ -55,14 +53,15 @@ func (eng *engine) pauseGame() {
 
 func (eng *engine) resumeGame() {
   eng.resumeRendering()
+  time.Sleep(2000 * time.Millisecond)
   go eng.listenToController()
-  time.Sleep(1500 * time.Millisecond)
   eng.resumeMovement()
 }
 
 func (eng *engine) stopGame() {
-  eng.renderingDone <- struct{}{}
   eng.controllerDone <- struct{}{}
+  time.Sleep(2000 * time.Millisecond)
+  eng.renderingDone <- struct{}{}
   eng.gameOver <- struct{}{}
 }
 
