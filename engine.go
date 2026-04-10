@@ -4,9 +4,13 @@ import "time"
 
 type game interface {
   render() string
-  step() (end bool)
+  step() (end bool, won bool)
   moveLeft()
   moveRight()
+}
+
+type gameStatus struct {
+  won bool
 }
 
 type engine struct {
@@ -19,7 +23,7 @@ type engine struct {
   renderTicker *time.Ticker
   movementTicker *time.Ticker
   gamePaused chan struct{}
-  gameOver chan struct{}
+  gameOver chan gameStatus
   renderingDone chan struct{}
   controllerDone chan struct{}
 }
@@ -30,7 +34,7 @@ func newEngine(w writer, klgr *keyLogger, controllerSetup map[byte]string) *engi
     klgr: klgr,
     controllerSetup: controllerSetup,
     gamePaused: make(chan struct{}),
-    gameOver: make(chan struct{}),
+    gameOver: make(chan gameStatus),
     renderingDone: make(chan struct{}),
     controllerDone: make(chan struct{}),
   }
@@ -58,19 +62,23 @@ func (eng *engine) resumeGame() {
   eng.resumeMovement()
 }
 
-func (eng *engine) stopGame() {
+func (eng *engine) stopGame(s gameStatus) {
   eng.controllerDone <- struct{}{}
-  time.Sleep(2000 * time.Millisecond)
+  if !s.won {
+    time.Sleep(2000 * time.Millisecond)
+  }
   eng.renderingDone <- struct{}{}
-  eng.gameOver <- struct{}{}
+  eng.gameOver <- s
 }
 
 func (eng *engine) startMovement() {
   eng.movementTicker = time.NewTicker(eng.movementInterval)
   for ; ; <-eng.movementTicker.C {
-    end := eng.g.step()
+    end, won := eng.g.step()
     if end {
-      eng.stopGame()
+      eng.stopGame(gameStatus{
+        won: won,
+      })
       break
     }
   }

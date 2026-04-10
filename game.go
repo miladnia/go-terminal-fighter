@@ -8,8 +8,6 @@ type context struct {
   blankLineCount int
   radar [][]int
   playerPosition int
-  hRatio int
-  vRatio int
   width int
   height int
 }
@@ -18,8 +16,6 @@ func newGame(selectedMap [][]int) game {
   ctx := context{
     selectedMap: selectedMap,
     mapIndex: len(selectedMap) - 1,
-    hRatio: 1,
-    vRatio: 3,
     height: 20,
     width: 15,
     playerPosition: 7,
@@ -28,7 +24,7 @@ func newGame(selectedMap [][]int) game {
   return &ctx
 }
 
-func (ctx *context) step() (end bool) {
+func (ctx *context) step() (end bool, won bool) {
   return ctx.moveForward()
 }
 
@@ -39,11 +35,13 @@ func (ctx *context) render() string {
     for _, item := range line {
       switch item {
         case 0:
-          canvas  = printSpace(canvas, ctx.hRatio)
+          canvas  = fmt.Sprint(canvas, " ")
         case 1:
           canvas = fmt.Sprint(canvas, "*")
         case 2:
           canvas = fmt.Sprint(canvas, "^")
+        case 9:
+          canvas = fmt.Sprint(canvas, "#")
       }
     }
     canvas = fmt.Sprintln(canvas)
@@ -51,10 +49,10 @@ func (ctx *context) render() string {
   return canvas
 }
 
-func (ctx *context) moveForward() (end bool) {
+func (ctx *context) moveForward() (end bool, won bool) {
   mapLine, done := ctx.readMap()
   if done {
-    return true
+    return true, true
   }
   // Remove the first line of the radar
   // and append a new line.
@@ -67,17 +65,17 @@ func (ctx *context) moveForward() (end bool) {
     firstLine = make([]int, ctx.width)
   }
   // Hit?
-  if firstLine[ctx.playerPosition] > 0 {
+  if firstLine[ctx.playerPosition] == 1 {
     end = true
   }
   firstLine[ctx.playerPosition] = 2
   ctx.radar[0] = firstLine
-  return end
+  return end, false
 }
 
 func (ctx *context) readMap() (mapLine []int, done bool) {
   // The whole map have been read.
-  if ctx.mapIndex <= 0 {
+  if ctx.mapIndex < 0 {
     // Return blank lines.
     if ctx.blankLineCount < ctx.height {
       ctx.blankLineCount++
@@ -85,12 +83,6 @@ func (ctx *context) readMap() (mapLine []int, done bool) {
     }
     return nil, true
   }
-  // Add blank lines between map lines.
-  if ctx.blankLineCount < ctx.vRatio {
-    ctx.blankLineCount++
-    return []int{}, false
-  }
-  ctx.blankLineCount = 0
   i := ctx.mapIndex
   ctx.mapIndex--
   mapLine = ctx.selectedMap[i]

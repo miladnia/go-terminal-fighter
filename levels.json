@@ -1,0 +1,15 @@
+[
+  {
+    "map-file": "maps/blue-sky.json",
+    "speed": 3
+  },
+  {
+    "map-file": "maps/vanilla-sky.json",
+    "speed": 5
+  },
+  {
+    "map-file": "maps/end-sky.json",
+    "speed": 10
+  }
+]
+

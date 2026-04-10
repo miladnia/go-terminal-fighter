@@ -1,42 +1,33 @@
 package main
 
 import (
+  "encoding/json"
   "fmt"
+  "os"
   "time"
 )
 
 type menuOption struct {
-  key byte
-  title string
-}
-
-func printSpace(s string, count int) string {
-  for i := 0; i < count; i++ {
-    s = fmt.Sprint(s, " ")
-  }
-  return s
+  key      byte
+  title    string
+  disabled bool
 }
 
 func clearScreen() {
-  // Clear screen
   fmt.Print("\033[2J")
-  // Go to (0, 0)
-  fmt.Print("\033[H")
+  goToScreenTop()
 }
 
-func flashMessage(msg string) {
-  clearScreen()
-  time.Sleep(500 * time.Millisecond)
-  fmt.Println(msg)
-  time.Sleep(1000 * time.Millisecond)
-  clearScreen()
+// Go to (0, 0)
+func goToScreenTop() {
+  fmt.Print("\033[H")
 }
 
 func showInfo(lines []string) {
   clearScreen()
   for _, ln := range lines {
     fmt.Println(ln)
-    time.Sleep(500 * time.Millisecond)
+    time.Sleep(250 * time.Millisecond)
   }
 }
 
@@ -45,7 +36,10 @@ func ask(klgr *keyLogger, options []menuOption) (selectedKey byte) {
   fmt.Println("==============")
   fmt.Println("Please Choose:")
   for _, opt := range options {
-    fmt.Printf("[%c] %s\n", opt.key, opt.title)
+    if opt.disabled {
+      continue
+    }
+    fmt.Printf("[%c] %s          \n", opt.key, opt.title)
     keys[opt.key] = struct{}{}
   }
   fmt.Println("==============")
@@ -57,5 +51,20 @@ func ask(klgr *keyLogger, options []menuOption) (selectedKey byte) {
   }
   clearScreen()
   return selectedKey
+}
+
+func decodeJsonFile(filename string, v any) error {
+  file, err := os.Open(filename)
+  if err != nil {
+    return fmt.Errorf("could not open the file '%v'! %s", filename, err)
+  }
+  defer file.Close()
+
+  decoder := json.NewDecoder(file)
+  if err := decoder.Decode(v); err != nil {
+    return fmt.Errorf("could not decode the file '%v'! %s", filename, err)
+  }
+
+  return nil
 }
 
