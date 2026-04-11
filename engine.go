@@ -14,29 +14,29 @@ type gameStatus struct {
 }
 
 type engine struct {
-  w writer
-  klgr *keyLogger
-  controllerSetup map[byte]string
-  g game
+  w                writer
+  klgr             *keyLogger
+  controllerSetup  map[byte]string
+  g                game
   movementInterval time.Duration
-  renderInterval time.Duration
-  renderTicker *time.Ticker
-  movementTicker *time.Ticker
-  gamePaused chan struct{}
-  gameOver chan gameStatus
-  renderingDone chan struct{}
-  controllerDone chan struct{}
+  renderInterval   time.Duration
+  renderTicker     *time.Ticker
+  movementTicker   *time.Ticker
+  gamePaused       chan struct{}
+  gameOver         chan gameStatus
+  renderingDone    chan struct{}
+  controllerDone   chan struct{}
 }
 
 func newEngine(w writer, klgr *keyLogger, controllerSetup map[byte]string) *engine {
   return &engine{
-    w: w,
-    klgr: klgr,
+    w:               w,
+    klgr:            klgr,
     controllerSetup: controllerSetup,
-    gamePaused: make(chan struct{}),
-    gameOver: make(chan gameStatus),
-    renderingDone: make(chan struct{}),
-    controllerDone: make(chan struct{}),
+    gamePaused:      make(chan struct{}),
+    gameOver:        make(chan gameStatus),
+    renderingDone:   make(chan struct{}),
+    controllerDone:  make(chan struct{}),
   }
 }
 

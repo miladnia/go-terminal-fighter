@@ -29,6 +29,8 @@ func newLauncher() *launcher {
 
 func (l *launcher) init() {
   clearScreen()
+  hideCursor()
+  defer showCursor()
   for {
     key := ask(l.k, []menuOption{
       {key: 'n', title: "New Game"},

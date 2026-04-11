@@ -23,6 +23,14 @@ func goToScreenTop() {
   fmt.Print("\033[H")
 }
 
+func hideCursor() {
+  fmt.Print("\033[?25l")
+}
+
+func showCursor() {
+  fmt.Print("\033[?25h")
+}
+
 func showInfo(lines []string) {
   clearScreen()
   for _, ln := range lines {
