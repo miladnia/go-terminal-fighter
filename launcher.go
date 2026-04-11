@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+  "fmt"
+  "time"
+)
 
 type state struct {
   lvl level
@@ -28,15 +31,16 @@ func newLauncher() *launcher {
 }
 
 func (l *launcher) init() {
-  clearScreen()
   hideCursor()
   defer showCursor()
   for {
+    clearScreen()
     key := ask(l.k, []menuOption{
       {key: 'n', title: "New Game"},
       {key: 'c', title: "Continue", disabled: l.p == nil},
       {key: 'e', title: "Exit"},
     })
+    clearScreen()
     if key == 'e' {
       return
     }
@@ -71,12 +75,16 @@ func (l *launcher) launch() (err error) {
         l.levelUp()
         showLevelUpMessage()
       } else {
+        if !status.won {
+          time.Sleep(1000 * time.Millisecond)
+        }
         showGameOverMessage()
       }
       key := ask(l.k, []menuOption{
         {key: 'c', title: "Continue"},
         {key: 'q', title: "Quit"},
       })
+      clearScreen()
       if key == 'q' {
         return
       }
@@ -91,9 +99,11 @@ func (l *launcher) launch() (err error) {
         {key: 'q', title: "Quit"},
       })
       if key == 'q' {
+        l.e.stopGame()
         return
       }
       if key == 'r' {
+        time.Sleep(1500 * time.Millisecond)
         l.e.resumeGame()
       }
     }

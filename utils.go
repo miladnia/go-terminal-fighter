@@ -41,23 +41,22 @@ func showInfo(lines []string) {
 
 func ask(klgr *keyLogger, options []menuOption) (selectedKey byte) {
   keys := map[byte]struct{}{}
-  fmt.Println("==============")
-  fmt.Println("Please Choose:")
+  fmt.Println(" ┌──────────────────────┐")
+  fmt.Println(" │ Please Choose:       │")
   for _, opt := range options {
     if opt.disabled {
       continue
     }
-    fmt.Printf("[%c] %s          \n", opt.key, opt.title)
+    fmt.Printf(" │ [%c] %-16s │\n", opt.key, opt.title)
     keys[opt.key] = struct{}{}
   }
-  fmt.Println("==============")
+  fmt.Println(" └──────────────────────┘")
   for {
     selectedKey = <-klgr.C
     if _, ok := keys[selectedKey]; ok {
       break
     }
   }
-  clearScreen()
   return selectedKey
 }
 

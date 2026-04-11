@@ -1,11 +1,12 @@
 package main
 
 import (
-  "fmt"
   "strings"
+  "sync"
 )
 
-type context struct {
+type game struct {
+  status         gameStatus
   selectedMap    [][]int
   mapIndex       int
   blankRowsCount int
@@ -17,10 +18,11 @@ type context struct {
   v              *viewport
   xRatio         int
   yRatio         int
+  mux            *sync.RWMutex
 }
 
-func newGame(selectedMap [][]int) game {
-  ctx := &context{
+func newGame(selectedMap [][]int) playable {
+  g := &game{
     selectedMap:    selectedMap,
     mapIndex:       len(selectedMap) - 1,
     height:         8,
@@ -28,58 +30,66 @@ func newGame(selectedMap [][]int) game {
     playerPosition: 7,
     xRatio:         5,
     yRatio:         3,
+    mux:            &sync.RWMutex{},
   }
   // Init radar.
-  ctx.radar = make([][]int, ctx.height)
-  for i := range ctx.radar {
-    ctx.radar[i] = make([]int, ctx.width)
+  g.radar = make([][]int, g.height)
+  for i := range g.radar {
+    g.radar[i] = make([]int, g.width)
   }
-  ctx.v = newViewPort(ctx.width * ctx.xRatio, ctx.height * ctx.yRatio)
-  ctx.steps = ctx.yRatio
-  return ctx
+  g.v = newViewPort(g.width * g.xRatio, g.height * g.yRatio)
+  g.steps = g.yRatio
+  return g
 }
 
-func (ctx *context) step() (end bool, won bool) {
-  if ctx.steps > 0 {
-    ctx.steps--
-    return false, false
+func (g *game) step() (gameOver bool) {
+  g.mux.Lock()
+  defer g.mux.Unlock()
+  if g.steps > 0 {
+    g.steps--
+    return false
   }
-  ctx.steps = ctx.yRatio
-  return ctx.moveForward()
+  g.steps = g.yRatio
+  return g.moveForward()
 }
 
-func (ctx *context) moveForward() (end bool, won bool) {
-  mapRow, done := ctx.readMap()
+func (g *game) render() string {
+  g.mux.RLock()
+  defer g.mux.RUnlock()
+  return g.render2DMode()
+}
+
+func (g *game) moveForward() (gameOver bool) {
+  mapRow, done := g.readMap()
   if done {
-    return true, true
+    g.status.gameOver = true
+    g.status.won = true
+    return true
   }
   // Remove the last row of the radar
   // and prepend a new row.
-  shiftDown(ctx.radar, mapRow)
+  shiftDown(g.radar, mapRow)
   // Reposition the player in
   // the new last row of the radar.
-  lastRow := ctx.radar[len(ctx.radar) - 1]
+  lastRow := g.radar[len(g.radar) - 1]
   // Hit?
-  if lastRow[ctx.playerPosition] == 1 {
-    end = true
+  if lastRow[g.playerPosition] == 1 {
+    g.status.gameOver = true
+    g.status.won = false
   }
-  lastRow[ctx.playerPosition] = 2
-  ctx.radar[len(ctx.radar) - 1] = lastRow
-  return end, false
+  lastRow[g.playerPosition] = 2
+  g.radar[len(g.radar) - 1] = lastRow
+  return g.status.gameOver
 }
 
-func (ctx *context) render() string {
-  return ctx.render2DMode()
-}
-
-func (ctx *context) render2DMode() string {
-  for y, row := range ctx.radar {
+func (g *game) render2DMode() string {
+  for y, row := range g.radar {
     for x, item := range row {
+      from := point{x: g.xRatio * x, y: g.yRatio * y}
+      to := point{x: from.x + g.xRatio, y: from.y + g.yRatio}
       // Fighter aircraft?
       if item == 2 {
-        from := point{x: ctx.xRatio * x, y: ctx.yRatio * y}
-        to := point{x: from.x + ctx.xRatio, y: from.y + ctx.yRatio}
-        ctx.v.drawFighter(from, to)
+        g.v.drawFighter(from, to)
         continue
       }
       char := ' '
@@ -89,72 +99,68 @@ func (ctx *context) render2DMode() string {
       case 9:
         char = '□'
       }
-      from := point{x: ctx.xRatio * x, y: ctx.yRatio * y}
-      to := point{x: from.x + ctx.xRatio, y: from.y + ctx.yRatio - ctx.steps}
-      ctx.v.drawBlock(char, from, to)
+      to.y -= g.steps // show the blocks row by row
+      g.v.drawBlock(char, from, to)
     }
   }
-  return ctx.v.toString()
+  return g.v.toString()
 }
 
-func (ctx *context) renderRadarMode() string {
-  var canvas string
-  for _, row := range ctx.radar {
+func (g *game) renderRadarMode() string {
+  var sb strings.Builder
+  for _, row := range g.radar {
     for _, item := range row {
       switch item {
         case 0:
-          canvas = fmt.Sprint(canvas, " ")
+          sb.WriteRune(' ')
         case 1:
-          canvas = fmt.Sprint(canvas, "#")
+          sb.WriteRune('#')
         case 2:
-          canvas = fmt.Sprint(canvas, "^")
+          sb.WriteRune('^')
         case 9:
-          canvas = fmt.Sprint(canvas, "*")
+          sb.WriteRune('*')
       }
     }
-    canvas = fmt.Sprintln(canvas)
+    sb.WriteRune('\n')
   }
-  return canvas
+  return sb.String()
 }
 
-func (ctx *context) readMap() (mapRow []int, done bool) {
+func (g *game) readMap() (mapRow []int, done bool) {
   // The whole map have been read.
-  if ctx.mapIndex < 0 {
+  if g.mapIndex < 0 {
     // Return blank rows.
-    if ctx.blankRowsCount < ctx.height {
-      ctx.blankRowsCount++
-      return make([]int, ctx.width), false
+    if g.blankRowsCount < g.height {
+      g.blankRowsCount++
+      return make([]int, g.width), false
     }
     return nil, true
   }
-  i := ctx.mapIndex
-  ctx.mapIndex--
-  mapRow = ctx.selectedMap[i]
+  i := g.mapIndex
+  g.mapIndex--
+  mapRow = g.selectedMap[i]
   if len(mapRow) == 0 {
-    mapRow = make([]int, ctx.width)
+    mapRow = make([]int, g.width)
   }
   return mapRow, false
 }
 
-func (ctx *context) moveLeft() {
-  if ctx.playerPosition == 0 {
+func (g *game) moveLeft() {
+  if g.playerPosition == 0 {
     return
   }
-  ctx.playerPosition--
+  g.playerPosition--
 }
 
-func (ctx *context) moveRight() {
-  if ctx.playerPosition == ctx.width - 1 {
+func (g *game) moveRight() {
+  if g.playerPosition == g.width - 1 {
     return
   }
-  ctx.playerPosition++
+  g.playerPosition++
 }
 
-func shiftDown[T any](s []T, newElement T) {
-  for i := len(s) - 1; i > 0; i-- {
-    s[i] = s[i - 1]
-  }
-  s[0] = newElement
+func (g *game) getStatus() gameStatus {
+  return g.status
 }
 
 type point struct {
@@ -218,5 +224,12 @@ func (v *viewport) toString() string {
     sb.WriteRune('\n')
   }
   return sb.String()
+}
+
+func shiftDown[T any](s []T, newElement T) {
+  for i := len(s) - 1; i > 0; i-- {
+    s[i] = s[i - 1]
+  }
+  s[0] = newElement
 }
 

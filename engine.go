@@ -2,139 +2,220 @@ package main
 
 import "time"
 
-type game interface {
+type playable interface {
+  step() (gameOver bool)
   render() string
-  step() (end bool, won bool)
   moveLeft()
   moveRight()
+  getStatus() gameStatus
 }
 
 type gameStatus struct {
-  won bool
+  gameOver bool
+  won      bool
+}
+
+type runner interface {
+  start(game playable)
+  pause()
+  resume()
+  stop()
 }
 
 type engine struct {
-  w                writer
-  klgr             *keyLogger
-  controllerSetup  map[byte]string
-  g                game
-  movementInterval time.Duration
-  renderInterval   time.Duration
-  renderTicker     *time.Ticker
-  movementTicker   *time.Ticker
-  gamePaused       chan struct{}
-  gameOver         chan gameStatus
-  renderingDone    chan struct{}
-  controllerDone   chan struct{}
+  game       playable
+  stepping   runner
+  rendering  runner
+  controller runner
+  gamePaused chan struct{}
+  gameOver   chan gameStatus
 }
 
 func newEngine(w writer, klgr *keyLogger, controllerSetup map[byte]string) *engine {
-  return &engine{
-    w:               w,
-    klgr:            klgr,
-    controllerSetup: controllerSetup,
-    gamePaused:      make(chan struct{}),
-    gameOver:        make(chan gameStatus),
-    renderingDone:   make(chan struct{}),
-    controllerDone:  make(chan struct{}),
+  e := &engine{
+    gamePaused: make(chan struct{}),
+    gameOver:   make(chan gameStatus),
   }
+  e.rendering = newRenderRunner(42 * time.Millisecond, w)
+  e.stepping = newStepRunner(42 * time.Millisecond, func() {
+    e.stopGame()
+    e.gameOver <- e.game.getStatus()
+  })
+  e.controller = newControllerRunner(klgr, controllerSetup, func() {
+    e.pauseGame()
+    e.gamePaused <- struct{}{}
+  })
+  return e
 }
 
-func (eng *engine) startGame(g game, speed int) {
-  eng.g = g
-  eng.movementInterval = time.Duration(500 / speed) * time.Millisecond
-  eng.renderInterval = 42 * time.Millisecond
-  go eng.startRendering()
-  go eng.startMovement()
-  go eng.listenToController()
+func (e *engine) startGame(game playable, speed int) {
+  e.game = game
+  go e.rendering.start(game)
+  go e.stepping.start(game)
+  go e.controller.start(game)
 }
 
-func (eng *engine) pauseGame() {
-  eng.pauseMovement()
-  eng.pauseRendering()
-  eng.gamePaused <- struct{}{}
-}
-
-func (eng *engine) resumeGame() {
-  eng.resumeRendering()
-  time.Sleep(2000 * time.Millisecond)
-  go eng.listenToController()
-  eng.resumeMovement()
-}
-
-func (eng *engine) stopGame(s gameStatus) {
-  eng.controllerDone <- struct{}{}
-  if !s.won {
-    time.Sleep(2000 * time.Millisecond)
-  }
-  eng.renderingDone <- struct{}{}
-  eng.gameOver <- s
-}
-
-func (eng *engine) startMovement() {
-  eng.movementTicker = time.NewTicker(eng.movementInterval)
-  for ; ; <-eng.movementTicker.C {
-    end, won := eng.g.step()
-    if end {
-      eng.stopGame(gameStatus{
-        won: won,
-      })
-      break
-    }
-  }
-}
-
-func (eng *engine) pauseMovement() {
-  eng.movementTicker.Stop()
-}
-
-func (eng *engine) resumeMovement() {
-  eng.movementTicker.Reset(eng.movementInterval)
-}
-
-func (eng *engine) startRendering() {
-  eng.renderTicker = time.NewTicker(eng.renderInterval)
-  for {
-    select {
-    case <-eng.renderingDone:
-      eng.renderTicker.Stop()
-      return
-    case <-eng.renderTicker.C:
-      frame := eng.g.render()
-      eng.w.write(frame)
-    }
-  }
-}
-
-func (eng *engine) resumeRendering() {
-  eng.renderTicker.Reset(eng.renderInterval)
-}
-
-func (eng *engine) pauseRendering() {
-  eng.renderTicker.Stop()
+func (e *engine) pauseGame() {
+  e.controller.pause()
+  e.stepping.pause()
+  // Let the rendering to be done completely.
   time.Sleep(100 * time.Millisecond)
+  e.rendering.pause()
 }
 
-func (eng *engine) listenToController() {
+func (e *engine) resumeGame() {
+  e.rendering.resume()
+  e.controller.resume()
+  e.stepping.resume()
+}
+
+func (e *engine) stopGame() {
+  e.stepping.stop()
+  e.controller.stop()
+  // Let the rendering to be done completely.
+  time.Sleep(100 * time.Millisecond)
+  e.rendering.stop()
+}
+
+type stepRunner struct {
+  interval   time.Duration
+  ticker     *time.Ticker
+  done       chan struct{}
+  onGameOver func()
+}
+
+func newStepRunner(interval time.Duration, onGameOver func()) *stepRunner {
+  return &stepRunner{
+    interval:   interval,
+    done:       make(chan struct{}),
+    onGameOver: onGameOver,
+  }
+}
+
+func (r *stepRunner) start(game playable) {
+  r.ticker = time.NewTicker(r.interval)
   for {
     select {
-    case <-eng.controllerDone:
+    case <-r.done:
+      r.ticker.Stop()
       return
-    case key := <-eng.klgr.C:
-      command, ok := eng.controllerSetup[key]
-      if !ok {
-        continue
+    case <-r.ticker.C:
+      gameOver := game.step()
+      if gameOver {
+        go r.onGameOver()
       }
-      switch command {
-      case "left":
-        eng.g.moveLeft()
-      case "right":
-        eng.g.moveRight()
-      case "pause":
-        eng.pauseGame()
+    }
+  }
+}
+
+func (r *stepRunner) pause() {
+  r.ticker.Stop()
+}
+
+func (r *stepRunner) resume() {
+  r.ticker.Reset(r.interval)
+}
+
+func (r *stepRunner) stop() {
+  r.done <- struct{}{}
+}
+
+type renderRunner struct {
+  interval time.Duration
+  ticker   *time.Ticker
+  done     chan struct{}
+  w        writer
+}
+
+func newRenderRunner(interval time.Duration, w writer) *renderRunner {
+  return &renderRunner {
+    interval: interval,
+    done:     make(chan struct{}),
+    w:        w,
+  }
+}
+
+func (r *renderRunner) start(game playable) {
+  r.ticker = time.NewTicker(r.interval)
+  for {
+    select {
+    case <-r.done:
+      r.ticker.Stop()
+      return
+    case <-r.ticker.C:
+      frame := game.render()
+      r.w.write(frame)
+    }
+  }
+}
+
+func (r *renderRunner) pause() {
+  r.ticker.Stop()
+}
+
+func (r *renderRunner) resume() {
+  r.ticker.Reset(r.interval)
+}
+
+func (r *renderRunner) stop() {
+  r.done <- struct{}{}
+}
+
+type controllerRunner struct {
+  klgr     *keyLogger
+  setup    map[byte]string
+  onPause  func()
+  chPause  chan struct{}
+  chResume chan struct{}
+  chStop   chan struct{}
+}
+
+func newControllerRunner(klgr *keyLogger, setup map[byte]string, onPause func()) *controllerRunner {
+  return &controllerRunner{
+    klgr:     klgr,
+    setup:    setup,
+    onPause:  onPause,
+    chPause:  make(chan struct{}),
+    chResume: make(chan struct{}),
+    chStop:   make(chan struct{}),
+  }
+}
+
+func (r *controllerRunner) start(game playable) {
+  for {
+    select {
+    case <-r.chStop:
+      return
+    case <-r.chPause:
+      select {
+      case <-r.chResume:
+        continue
+      case <-r.chStop:
         return
       }
+    case key := <-r.klgr.C:
+      command := r.setup[key]
+      switch command {
+      case "left":
+        game.moveLeft()
+      case "right":
+        game.moveRight()
+      case "pause":
+        go r.onPause()
+      }
     }
   }
+}
+
+func (r *controllerRunner) pause() {
+  r.chPause <- struct{}{}
+}
+
+func (r *controllerRunner) resume() {
+  r.chResume <- struct{}{}
+}
+
+func (r *controllerRunner) stop() {
+  r.chStop <- struct{}{}
 }
 
