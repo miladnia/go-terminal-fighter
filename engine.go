@@ -37,7 +37,7 @@ func newEngine(w writer, klgr *keyLogger, controllerSetup map[byte]string) *engi
     gameOver:   make(chan gameStatus),
   }
   e.rendering = newRenderRunner(42 * time.Millisecond, w)
-  e.stepping = newStepRunner(42 * time.Millisecond, func() {
+  e.stepping = newStepRunner(500 * time.Millisecond, func() {
     e.stopGame()
     e.gameOver <- e.game.getStatus()
   })
