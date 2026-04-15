@@ -2,6 +2,11 @@ package main
 
 import "time"
 
+const (
+  renderingInterval = 42 * time.Millisecond
+  steppingInterval  = 30 * time.Millisecond
+)
+
 type playable interface {
   step() (gameOver bool)
   render() string
@@ -36,8 +41,8 @@ func newEngine(w writer, klgr *keyLogger, controllerSetup map[byte]string) *engi
     gamePaused: make(chan struct{}),
     gameOver:   make(chan gameStatus),
   }
-  e.rendering = newRenderRunner(42 * time.Millisecond, w)
-  e.stepping = newStepRunner(500 * time.Millisecond, func() {
+  e.rendering = newRenderRunner(renderingInterval, w)
+  e.stepping = newStepRunner(steppingInterval, func() {
     e.stopGame()
     e.gameOver <- e.game.getStatus()
   })
@@ -48,7 +53,7 @@ func newEngine(w writer, klgr *keyLogger, controllerSetup map[byte]string) *engi
   return e
 }
 
-func (e *engine) startGame(game playable, speed int) {
+func (e *engine) startGame(game playable) {
   e.game = game
   go e.rendering.start(game)
   go e.stepping.start(game)

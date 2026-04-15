@@ -17,9 +17,9 @@ type launcher struct {
 }
 
 func newLauncher() *launcher {
-  writer := terminalWriter{}
+  writer := &terminalWriter{}
   keyLogger := newKeyLogger()
-  engine := newEngine(&writer, keyLogger, map[byte]string{
+  engine := newEngine(writer, keyLogger, map[byte]string{
     'a': "left",
     'd': "right",
     'q': "pause",
@@ -117,8 +117,8 @@ func (l *launcher) startGame() error {
     return err
   }
   l.s.lvl = lvl
-  game := newGame(lvl.getMap())
-  l.e.startGame(game, lvl.Speed)
+  game := newGame(lvl.getMap(), lvl.Speed)
+  l.e.startGame(game)
   return nil
 }
 

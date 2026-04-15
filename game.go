@@ -1,56 +1,51 @@
 package main
 
-import (
-  "sync"
-)
-
 const (
-  width  = 15
-  height = 8
-  xRatio = 5
-  yRatio = 3
+  width    = 15
+  height   = 8
+  xRatio   = 5
+  yRatio   = 3
+  speedMin = 1
+  speedMax = 10
+  fighterX = 7
 )
 
 type game struct {
-  status         gameStatus
-  gameMap        gameMap
-  radar          [][]int
-  canvas         *canvas
-  fighter        fighter
-  mux            sync.RWMutex
-  steps          int
+  status      gameStatus
+  gameMap     gameMap
+  radar       [][]int
+  canvas      *canvas
+  fighter     fighter
+  steps       int
+  renderSteps int
+  stepsDelay  int
 }
 
-func newGame(mapGrid [][]int) playable {
+func newGame(mapGrid [][]int, speed int) playable {
+  if speed < speedMin {
+    speed = speedMin
+  } else if speed > speedMax {
+    speed = speedMax
+  }
   g := &game{
-    mux: sync.RWMutex{},
+    gameMap:    gameMap{grid: mapGrid},
+    stepsDelay: speedMax - speed + 1,
+    fighter:    fighter{x: fighterX, y: len(mapGrid) - 1 + height},
+    canvas:     newCanvas(width, height, xRatio, yRatio),
   }
-  g.gameMap = gameMap{
-    grid: mapGrid,
-  }
-  g.fighter = fighter{
-    x: 7,
-    y: len(mapGrid) + height,
-  }
-  g.canvas = newCanvas(width, height, xRatio, yRatio)
   return g
 }
 
 func (g *game) step() (gameOver bool) {
-  g.mux.Lock()
-  defer g.mux.Unlock()
   g.steps++
-  if g.steps < yRatio {
-    return false
+  if g.steps % g.stepsDelay != 0 {
+    return
   }
-  g.steps = 0
+  g.renderSteps++
+  if g.renderSteps % yRatio != 0 {
+    return
+  }
   return g.moveForward()
-}
-
-func (g *game) render() string {
-  g.mux.Lock()
-  defer g.mux.Unlock()
-  return g.render2DMode()
 }
 
 func (g *game) moveForward() (gameOver bool) {
@@ -77,7 +72,7 @@ func (g *game) moveForward() (gameOver bool) {
   return g.status.gameOver
 }
 
-func (g *game) render2DMode() string {
+func (g *game) render() string {
   g.canvas.clean()
   for i, row := range g.radar {
     // Empty row?
@@ -94,7 +89,7 @@ func (g *game) render2DMode() string {
       default:
         continue
       }
-      rowsToMask := yRatio - g.steps - 1
+      rowsToMask := yRatio - (g.renderSteps % yRatio) - 1
       g.canvas.draw(char, point{x: j, y: i}, rowsToMask)
     }
   }
