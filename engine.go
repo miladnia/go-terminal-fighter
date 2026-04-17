@@ -12,10 +12,10 @@ type playable interface {
   render() string
   moveLeft()
   moveRight()
-  getStatus() gameStatus
+  getState() gameState
 }
 
-type gameStatus struct {
+type gameState struct {
   gameOver bool
   won      bool
 }
@@ -33,18 +33,18 @@ type engine struct {
   rendering  runner
   controller runner
   gamePaused chan struct{}
-  gameOver   chan gameStatus
+  gameOver   chan gameState
 }
 
 func newEngine(w writer, klgr *keyLogger, controllerSetup map[byte]string) *engine {
   e := &engine{
     gamePaused: make(chan struct{}),
-    gameOver:   make(chan gameStatus),
+    gameOver:   make(chan gameState),
   }
   e.rendering = newRenderRunner(renderingInterval, w)
   e.stepping = newStepRunner(steppingInterval, func() {
     e.stopGame()
-    e.gameOver <- e.game.getStatus()
+    e.gameOver <- e.game.getState()
   })
   e.controller = newControllerRunner(klgr, controllerSetup, func() {
     e.pauseGame()

@@ -6,6 +6,10 @@ type point struct {
   x, y int
 }
 
+type drawable interface {
+  getSprite(w, h int) ([][]rune, error)
+}
+
 type canvas struct {
   width  int
   height int
@@ -55,14 +59,15 @@ func (c *canvas) drawBlock(char rune, a, b point) {
   }
 }
 
-func (c *canvas) drawSprite(f [][]rune, p point) {
-  if len(f) != yRatio {
+func (c *canvas) drawSprite(d drawable, p point) {
+  sprite, err := d.getSprite(c.xRatio, c.yRatio)
+  if err != nil {
     return
   }
-  p.x *= xRatio
-  p.y *= yRatio
-  for i, row := range f {
-    if len(c.grid[p.y + i]) == 0{
+  p.x *= c.xRatio
+  p.y *= c.yRatio
+  for i, row := range sprite {
+    if len(c.grid[p.y + i]) == 0 {
       c.grid[p.y + i] = make([]rune, c.width)
     }
     for j, char := range row {
@@ -77,7 +82,7 @@ func (c *canvas) toString() string {
   // of characters will be shown in the last row,
   // and when we have 'rowsToMask' (greater than 0)
   // the last row will be disapear line by line smoothly.
-  rowsToIgnore := yRatio - 1
+  rowsToIgnore := c.yRatio - 1
   h := len(c.grid) - rowsToIgnore
   g := c.grid[:h]
   for _, row := range g {

@@ -66,8 +66,8 @@ func (l *launcher) launch() (err error) {
 
   for {
     select {
-    case status := <-l.e.gameOver:
-      if status.won {
+    case gameState := <-l.e.gameOver:
+      if gameState.won {
         if l.isFinalLevel() {
           showFinalMessage()
           return
@@ -75,7 +75,7 @@ func (l *launcher) launch() (err error) {
         l.levelUp()
         showLevelUpMessage()
       } else {
-        if !status.won {
+        if !gameState.won {
           time.Sleep(1000 * time.Millisecond)
         }
         showGameOverMessage()
