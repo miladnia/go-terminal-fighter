@@ -10,7 +10,7 @@ type state struct {
 }
 
 type launcher struct {
-  k *keyLogger
+  d dialogue
   e *engine
   p *profile
   s state
@@ -25,7 +25,7 @@ func newLauncher() *launcher {
     'q': "pause",
   })
   return &launcher{
-    k: keyLogger,
+    d: dialogue{klgr: keyLogger},
     e: engine,
   }
 }
@@ -34,13 +34,11 @@ func (l *launcher) init() {
   hideCursor()
   defer showCursor()
   for {
-    clearScreen()
-    key := ask(l.k, []menuOption{
+    key := l.d.cleanAsk([]option{
       {key: 'n', title: "New Game"},
       {key: 'c', title: "Continue", disabled: l.p == nil},
       {key: 'e', title: "Exit"},
     })
-    clearScreen()
     if key == 'e' {
       return
     }
@@ -70,6 +68,7 @@ func (l *launcher) launch() (err error) {
       if gameState.won {
         if l.isFinalLevel() {
           showFinalMessage()
+          l.d.askAnyKey()
           return
         }
         l.levelUp()
@@ -80,11 +79,10 @@ func (l *launcher) launch() (err error) {
         }
         showGameOverMessage()
       }
-      key := ask(l.k, []menuOption{
+      key := l.d.askAndClear([]option{
         {key: 'c', title: "Continue"},
         {key: 'q', title: "Quit"},
       })
-      clearScreen()
       if key == 'q' {
         return
       }
@@ -93,8 +91,7 @@ func (l *launcher) launch() (err error) {
         return
       }
     case <-l.e.gamePaused:
-      goToScreenTop()
-      key := ask(l.k, []menuOption{
+      key := l.d.askTransparent([]option{
         {key: 'r', title: "Resume"},
         {key: 'q', title: "Quit"},
       })

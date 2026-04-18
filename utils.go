@@ -7,12 +7,6 @@ import (
   "time"
 )
 
-type menuOption struct {
-  key      byte
-  title    string
-  disabled bool
-}
-
 func clearScreen() {
   fmt.Print("\033[2J")
   goToScreenTop()
@@ -37,27 +31,6 @@ func showInfo(lines []string) {
     fmt.Println(ln)
     time.Sleep(250 * time.Millisecond)
   }
-}
-
-func ask(klgr *keyLogger, options []menuOption) (selectedKey byte) {
-  keys := map[byte]struct{}{}
-  fmt.Println(" ┌──────────────────────┐")
-  fmt.Println(" │ Please Choose:       │")
-  for _, opt := range options {
-    if opt.disabled {
-      continue
-    }
-    fmt.Printf(" │ [%c] %-16s │\n", opt.key, opt.title)
-    keys[opt.key] = struct{}{}
-  }
-  fmt.Println(" └──────────────────────┘")
-  for {
-    selectedKey = <-klgr.C
-    if _, ok := keys[selectedKey]; ok {
-      break
-    }
-  }
-  return selectedKey
 }
 
 func decodeJsonFile(filename string, v any) error {
