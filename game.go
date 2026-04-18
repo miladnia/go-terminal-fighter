@@ -23,7 +23,6 @@ type game struct {
   renderSteps int
   stepsDelay  int
   mux         sync.Mutex
-  started     bool
 }
 
 func newGame(mapGrid [][]int, speed int) playable {
@@ -36,6 +35,7 @@ func newGame(mapGrid [][]int, speed int) playable {
     gameMap:    gameMap{grid: mapGrid},
     stepsDelay: speedMax - speed + 1,
     fighter:    fighter{x: fighterDefaultX, y: len(mapGrid) - 1 + height},
+    radar:      make([][]int, height),
     canvas:     newCanvas(width, height, xRatio, yRatio),
     mux:        sync.Mutex{},
   }
@@ -66,13 +66,9 @@ func (g *game) moveForward() {
   mapChunk, _ := g.gameMap.getChunk(mapIndex - height + 1, mapIndex)
   g.radar = mapChunk
   g.updateState()
-  g.started = true
 }
 
 func (g *game) render() string {
-  if !g.started {
-    return ""
-  }
   g.canvas.clean()
   for i, row := range g.radar {
     // Empty row?
@@ -106,9 +102,6 @@ func (g *game) render() string {
 func (g *game) moveLeft() {
   g.mux.Lock()
   defer g.mux.Unlock()
-  if !g.started {
-    return
-  }
   if g.fighter.x == 0 {
     return
   }
@@ -119,9 +112,6 @@ func (g *game) moveLeft() {
 func (g *game) moveRight() {
   g.mux.Lock()
   defer g.mux.Unlock()
-  if !g.started {
-    return
-  }
   if g.fighter.x == width - 1 {
     return
   }
