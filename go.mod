@@ -1,3 +1,3 @@
-module gitlab.com/miladnia/go-console-game
+module gitlab.com/miladnia/go-terminal-fighter
 
 go 1.22.5
