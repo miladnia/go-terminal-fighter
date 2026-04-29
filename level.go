@@ -1,8 +1,19 @@
 package main
 
-import "fmt"
+import (
+  "embed"
+  "encoding/json"
+  "fmt"
+  "path/filepath"
+)
 
-const levelsFile = "levels.json"
+const (
+  levelsFile = "levels.json"
+  mapsDir    = "maps"
+)
+
+//go:embed levels.json maps/*.json
+var gameFS embed.FS
 
 type level struct {
   No      int
@@ -31,10 +42,24 @@ func getLevel(levelNo int) (level, error) {
 }
 
 func (lvl *level) getMap() (m [][]int) {
-  err := decodeJsonFile(lvl.MapFile, &m)
+  mapFile := filepath.Join(mapsDir, lvl.MapFile)
+  err := decodeJsonFile(mapFile, &m)
   if err != nil {
     panic(err)
   }
   return m
+}
+
+func decodeJsonFile(filename string, v any) error {
+  data, err := gameFS.ReadFile(filename)
+	if err != nil {
+    return fmt.Errorf("could not open the file '%v'! (%s)", filename, err)
+	}
+
+  if err := json.Unmarshal(data, v); err != nil {
+    return fmt.Errorf("could not decode the file '%v'! (%s)", filename, err)
+  }
+
+  return nil
 }
 

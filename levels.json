@@ -1,14 +1,14 @@
 [
   {
-    "map-file": "maps/blue-sky.json",
+    "map-file": "blue-sky.json",
     "speed": 7
   },
   {
-    "map-file": "maps/vanilla-sky.json",
+    "map-file": "vanilla-sky.json",
     "speed": 9
   },
   {
-    "map-file": "maps/end-sky.json",
+    "map-file": "end-sky.json",
     "speed": 10
   }
 ]

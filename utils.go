@@ -1,9 +1,7 @@
 package main
 
 import (
-  "encoding/json"
   "fmt"
-  "os"
   "time"
 )
 
@@ -31,20 +29,5 @@ func showInfo(lines []string) {
     fmt.Println(ln)
     time.Sleep(250 * time.Millisecond)
   }
-}
-
-func decodeJsonFile(filename string, v any) error {
-  file, err := os.Open(filename)
-  if err != nil {
-    return fmt.Errorf("could not open the file '%v'! %s", filename, err)
-  }
-  defer file.Close()
-
-  decoder := json.NewDecoder(file)
-  if err := decoder.Decode(v); err != nil {
-    return fmt.Errorf("could not decode the file '%v'! %s", filename, err)
-  }
-
-  return nil
 }
 
