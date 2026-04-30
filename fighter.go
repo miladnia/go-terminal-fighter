@@ -38,6 +38,6 @@ func (f *fighter) getSprite(w, h int) ([][]rune, error) {
     }, nil
   }
 
-  return nil, fmt.Errorf("fighter: no (%v x %v) sprite.")
+  return nil, fmt.Errorf("fighter: no (%v x %v) sprite.", w, h)
 }
 
