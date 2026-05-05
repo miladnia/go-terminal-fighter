@@ -40,8 +40,5 @@ changelog:
     - title: Fixes
       regexp: '^fix(\([^)]*\))?!?:'
       order: 1
-    - title: Documentation
-      regexp: '^docs(\([^)]*\))?!?:'
-      order: 2
     - title: Other work
       order: 999
