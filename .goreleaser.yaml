@@ -40,5 +40,3 @@ changelog:
     - title: Fixes
       regexp: '^fix(\([^)]*\))?!?:'
       order: 1
-    - title: Other work
-      order: 999
