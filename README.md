@@ -6,33 +6,29 @@ A nostalgic remake of the classic Brick Game racing experience.
 
 ## Installation
 
+### Binary Release (Linux/Windows)
+
+You can manually download a binary release from [the release page](https://github.com/miladnia/go-terminal-fighter/releases).
+
+### Go
+
 > [!NOTE]
-> You need to [install Go](https://golang.org/doc/install)
+> You'll need to [install Go](https://golang.org/doc/install)
 
 ```sh
 go install github.com/miladnia/go-terminal-fighter@latest
 ```
 
----
-
 ## Build and Run
 
-> [!NOTE]
-> You need to [install Go](https://golang.org/doc/install)
+Required [Go](https://golang.org/doc/install) version >= 1.22
 
 ```sh
 git clone https://github.com/miladnia/go-terminal-fighter.git
-```
-
-```sh
 cd go-terminal-fighter
+go build
+./go-terminal-fighter
 ```
-
-```sh
-./build
-```
-
----
 
 ## Customization
 
@@ -42,8 +38,6 @@ Maps and levels are formatted in JSON files:
 - maps/
 - levels.json
 ```
-
----
 
 ## About The Brick Game
 
