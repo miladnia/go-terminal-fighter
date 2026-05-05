@@ -1,0 +1,47 @@
+version: 2
+
+builds:
+  - id: terminal-fighter
+    main: .
+    binary: terminal-fighter
+    goos:
+      - linux
+      - windows
+    goarch:
+      - amd64
+    ldflags:
+      - -s -w
+    env:
+      - CGO_ENABLED=0
+
+archives:
+  - id: terminal-fighter
+    builds:
+      - terminal-fighter
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    format: binary
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+release:
+  draft: false
+  prerelease: auto
+  mode: replace
+
+changelog:
+  use: git
+  sort: asc
+  groups:
+    - title: Features
+      regexp: '^feat(\([^)]*\))?!?:'
+      order: 0
+    - title: Fixes
+      regexp: '^fix(\([^)]*\))?!?:'
+      order: 1
+    - title: Documentation
+      regexp: '^docs(\([^)]*\))?!?:'
+      order: 2
+    - title: Other work
+      order: 999
