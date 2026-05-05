@@ -4,7 +4,7 @@ import (
   "embed"
   "encoding/json"
   "fmt"
-  "path/filepath"
+  "path"
 )
 
 const (
@@ -24,7 +24,7 @@ type level struct {
 
 func getLevel(levelNo int) (level, error) {
   var levels []level
-  err := decodeJsonFile(levelsFile, &levels)
+  err := decodeJsonFile(&levels, levelsFile)
   if err != nil {
     return level{}, err
   }
@@ -42,22 +42,25 @@ func getLevel(levelNo int) (level, error) {
 }
 
 func (lvl *level) getMap() (m [][]int) {
-  mapFile := filepath.Join(mapsDir, lvl.MapFile)
-  err := decodeJsonFile(mapFile, &m)
+  err := decodeJsonFile(&m, mapsDir, lvl.MapFile)
   if err != nil {
     panic(err)
   }
   return m
 }
 
-func decodeJsonFile(filename string, v any) error {
-  data, err := gameFS.ReadFile(filename)
+// decodeJsonFile unmarshals JSON data from the embedded filesystem into dest.
+// The pathSegments are joined as path components (directories followed by filename),
+// not as multiple separate file paths. Example: decodeJsonFile(&data, "maps", "blue.json").
+func decodeJsonFile(dest any, pathSegments ...string) error {
+  fullPath := path.Join(pathSegments...)
+  rawJSON, err := gameFS.ReadFile(fullPath)
 	if err != nil {
-    return fmt.Errorf("could not open the file '%v'! (%s)", filename, err)
+    return fmt.Errorf("could not open the file '%v'! (%s)", fullPath, err)
 	}
 
-  if err := json.Unmarshal(data, v); err != nil {
-    return fmt.Errorf("could not decode the file '%v'! (%s)", filename, err)
+  if err := json.Unmarshal(rawJSON, dest); err != nil {
+    return fmt.Errorf("could not decode the file '%v'! (%s)", fullPath, err)
   }
 
   return nil
